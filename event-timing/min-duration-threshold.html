@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8 />
+<title>Event Timing: PerformanceObserver with a durationThreshold less than 16</title>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/resources/testdriver.js></script>
+<script src=/resources/testdriver-vendor.js></script>
+<script src=resources/event-timing-test-utils.js></script>
+<div id='myDiv'>Click me</div>
+<script>
+promise_test(async t => {
+  assert_implements(window.PerformanceEventTiming, 'Event Timing is not supported.');
+  const minExpectedEntries = 5;
+  let numEntriesReceived = 0;
+  // Add a PerformanceObserver and observe with a durationThreshold of 0, and check that
+  // entries received have a duration of at least 16.
+  return new Promise(async resolve => {
+    new PerformanceObserver(list => {
+      const mouseDowns = list.getEntriesByName('mousedown');
+      mouseDowns.forEach(e => {
+        t.step(() => {
+          verifyClickEvent(e, 'myDiv', false /* isFirst */, 16 /* minDuration*/);
+        });
+      });
+      numEntriesReceived += mouseDowns.length;
+      // Note that we may receive more entries if the 'fast' click events turn out slower
+      // than expected.
+      if (numEntriesReceived >= minExpectedEntries)
+        resolve();
+    }).observe({type: "event", durationThreshold: 0});
+    const element = document.getElementById('myDiv');
+    for (let index = 0; index < minExpectedEntries; index++) {
+      // Add some fast click events.
+      await test_driver.click(element);
+      // Add some slow click events.
+      await clickOnElementAndDelay('myDiv', 20);
+    }
+  });
+}, "PerformanceObserver with durationThreshold of 0 sees events of duration >= 16");
+</script>
+</html>
